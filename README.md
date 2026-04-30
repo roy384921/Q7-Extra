@@ -22,15 +22,23 @@
 * 移動狀態：完全靜止不動（v = [0, 0, 0]）。
 * 特徵意義：建立純靜態的通道環境，用以對照其他移動場景，觀察純粹由空間位置差異帶來的角度與延遲特性變化。
 # 模擬結果與分析
-
-## 根據 Figure 1 的模擬結果，我們可以觀察到以下幾個關鍵結論：
-### 理想情境（具備 CP，無符號間干擾）：
-* 在系統擁有完整 CP 的理想條件下（圖中實線），系統不存在符號間干擾 (Inter-Symbol Interference, ISI)。
-* **LMMSE 估測器**（藍色空心圓，LMMSE (with CP)）在此線性條件下展現了最佳的基準性能，其 MSE 隨著 SNR 的提升而穩定且大幅地下降（在 40 dB 時達到約 $2 \times 10^{-5}$）。
-* **DNN 估測器**（紅色空心方塊，DNN (with CP)）的曲線與 LMMSE 高度貼合。這證明了在理想通道條件下，數據驅動 (Data-Driven) 的神經網路模型具備足夠的學習能力，能夠完美擬合並重現傳統最佳線性估測演算法的表現。
-### 非理想嚴苛情境（移除 CP，引發嚴重 ISI）：
-* 當移除 CP 時（圖中虛線），相鄰 OFDM 符號間會產生嚴重的 ISI，使得通道模型呈現高度的非線性與干擾。
-* **傳統算法的崩潰 (Error Floor)**：傳統的 LMMSE 估測器（藍色實心圓，LMMSE (without CP)）完全無法處理這類非線性干擾。無論 SNR 如何提升，其 MSE 始終停滯在極高的誤差底線（約在 $4 \times 10^{-2}$ 附近），完全失去通道估測的有效性。
-* **DNN 的強健性 (Robustness)**：與之形成強烈對比的是，DNN 估測器（紅色實心方塊，DNN (without CP)）展現了極佳的抗干擾能力。即使在缺乏 CP 的情況下，其 MSE 依然能隨著 SNR 的增加而持續下降，軌跡僅略微高於理想的 CP 情境。這顯示 DNN 能夠透過其隱藏層成功學習到 ISI 的干擾模式，並在估測過程中進行了有效的非線性補償。
-# 總結 (Conclusion)
-這項實驗證明了資料驅動通道估測器的巨大潛力。在常規條件下，DNN 能夠達到媲美 LMMSE 的精確度；而在面對嚴苛的物理限制與複雜的通道失真（如缺乏 CP 導致的 ISI）時，DNN 則能突破傳統線性演算法的理論瓶頸，維持高度可靠的通訊品質。
+## 單一場景訓練的侷限性（b小題：面臨 Domain Shift）
+* 在b小題中，我們使用僅在單一基礎場景下訓練的 CsiNet 模型，去推論五個具備不同使用者分佈與移動速度的全新測試集。
+* 效能顯著劣化：測試結果顯示，當面臨未曾見過的通道特徵時，模型的重建表現（NMSE）並不如預期理想（例如誤差停滯在較高的水平，-1~-2 dB 附近）。
+* Domain Shift效應: 這個現象證明了資料驅動 (Data-Driven) 模型的脆弱性。由於訓練資料缺乏多樣性，神經網路會過度擬合（Overfit）於單一環境的局部特徵，一旦實際物理環境改變（如使用者移至邊緣或高速移動導致不同的角度-延遲域分佈），編碼器便無法有效萃取通道結構，導致解碼器重建出失真或帶有大量雜訊的 CSI。
+## 混合場景訓練的強健性（c小題: Generalization 能力的提升）
+* 在c小題中，我們將涵蓋多種極端分佈（如近中心、邊緣、高速移動等）的五個資料集混合，重新訓練了一個具備廣泛視野的 CsiNet 模型。  
+* NMSE 的全面改善：與b小題的結果形成強烈對比，經過混合訓練後，模型在各個獨立測試集上的 NMSE 皆有顯著幅度的下降（改善）。這證明神經網路成功適應了複雜的動態環境變化。
+* 通用特徵的學習 (Universal Feature Representation)：這顯示當賦予足夠多樣的訓練樣本時，CsiNet 能夠突破單一場景的限制，學習到角度-延遲域中更深層、更通用的物理稀疏結構，而非死記硬背特定位置的通道樣貌，從而進行了有效的非線性特徵壓縮與補償。 
+## 模擬圖及NMSE
+下列以場景2作為示範，可看出如上所述之結果，當使用混合場景訓練時，NMSE相較單一場景訓練獲得巨大之提升。
+<p align="center">
+<img width="1592" height="334" alt="image" src="https://github.com/user-attachments/assets/fc2b0d20-f459-4e85-a32c-2dc66d495047" />
+<img width="199" height="36" alt="image" src="https://github.com/user-attachments/assets/4e3e93f1-78b1-4a39-8f33-fbc796831301" />
+</p>
+<p align="center"> <strong>單一訓練</strong> </p>
+<p align="center">
+<img width="1607" height="340" alt="image" src="https://github.com/user-attachments/assets/dc66f15c-297b-4508-847c-0ebe4bfe496b" />
+<img width="197" height="39" alt="image" src="https://github.com/user-attachments/assets/c22e6b93-c17b-4f08-8083-7664a16e58fe" />  
+</p>
+<p align="center"> <strong>混合訓練</strong> </p>
